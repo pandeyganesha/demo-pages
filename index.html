@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Merge Sort Visualizer</title>
+<meta name="description" content="Step-by-step interactive visualization of the merge sort algorithm.">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --text: #1d2330;
+    --muted: #6b7385;
+    --border: #e2e5ea;
+    --bar: #9aa5b8;
+    --left: #4c7bf4;
+    --right: #e0873a;
+    --target: #d64545;
+    --written: #2f9e6e;
+    --done: #2f9e6e;
+    --out: #d7dbe2;
+    --accent: #4c7bf4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151b;
+      --panel: #1b1f27;
+      --text: #e6e9ef;
+      --muted: #8c94a5;
+      --border: #2a303b;
+      --bar: #5d6678;
+      --left: #6b93ff;
+      --right: #f0a25e;
+      --target: #ff6b6b;
+      --written: #45c08d;
+      --done: #45c08d;
+      --out: #2c323d;
+      --accent: #6b93ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    font: inherit;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; min-width: 84px; }
+  label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .9rem; }
+  input[type=range] { width: 120px; accent-color: var(--accent); }
+  .val { color: var(--text); min-width: 2.5ch; font-variant-numeric: tabular-nums; }
+
+  .lane-title { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 0 0 6px; }
+  .lane {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    width: 100%;
+  }
+  #main { height: 300px; }
+  #buffer { height: 150px; }
+  .lane + .lane-title { margin-top: 18px; }
+  .bar {
+    flex: 1 1 0;
+    min-width: 0;
+    background: var(--bar);
+    border-radius: 3px 3px 0 0;
+    position: relative;
+    transition: height .15s ease, background-color .15s ease, opacity .15s ease;
+  }
+  .bar span {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: .7rem;
+    color: var(--muted);
+    padding-bottom: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .bar.empty { background: transparent; }
+  .bar.out { background: var(--out); }
+  .bar.left { background: var(--left); }
+  .bar.right { background: var(--right); }
+  .bar.target { background: var(--target); }
+  .bar.written { background: var(--written); }
+  .bar.done { background: var(--done); }
+  .bar.consumed { opacity: .2; }
+  .bar.cmp { outline: 2px solid var(--target); outline-offset: 1px; }
+
+  .status { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; }
+  #msg { font-weight: 600; flex: 1 1 300px; min-height: 1.5em; }
+  .stats { display: flex; gap: 20px; color: var(--muted); font-size: .9rem; font-variant-numeric: tabular-nums; }
+  .stats b { color: var(--text); font-weight: 600; }
+  progress { width: 100%; height: 6px; margin-top: 10px; accent-color: var(--accent); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .85rem; color: var(--muted); margin-top: 14px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+
+  .about { color: var(--muted); font-size: .9rem; }
+  .about h2 { color: var(--text); font-size: 1rem; margin: 0 0 6px; }
+  .about p { margin: 0 0 8px; }
+  kbd { font: .8rem ui-monospace, monospace; border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
+
+  @media (max-width: 600px) {
+    #main { height: 220px; }
+    #buffer { height: 110px; }
+    .lane { gap: 1px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Merge Sort Visualizer</h1>
+  <p class="sub">Watch merge sort split an array in half, recurse, and merge the sorted halves back together.</p>
+
+  <section class="panel controls">
+    <div class="buttons">
+      <button id="btnNew">New array</button>
+      <button id="btnBack" title="Step back (←)">◀ Step</button>
+      <button id="btnPlay" class="primary" title="Play / pause (Space)">Play</button>
+      <button id="btnFwd" title="Step forward (→)">Step ▶</button>
+      <button id="btnReset">Reset</button>
+    </div>
+    <label>Size <input id="size" type="range" min="4" max="64" value="16"><span class="val" id="sizeVal">16</span></label>
+    <label>Speed <input id="speed" type="range" min="1" max="10" value="5"><span class="val" id="speedVal">5</span></label>
+  </section>
+
+  <section class="panel">
+    <div class="status">
+      <div id="msg"></div>
+      <div class="stats">
+        <span>Comparisons <b id="cmp">0</b></span>
+        <span>Writes <b id="wr">0</b></span>
+        <span>Step <b id="stepNo">0</b>/<b id="stepTotal">0</b></span>
+      </div>
+    </div>
+    <progress id="progress" value="0" max="1"></progress>
+
+    <p class="lane-title" style="margin-top:28px">Array</p>
+    <div class="lane" id="main"></div>
+    <p class="lane-title">Merge buffer</p>
+    <div class="lane" id="buffer"></div>
+
+    <div class="legend">
+      <span><i style="background:var(--left)"></i>Left half</span>
+      <span><i style="background:var(--right)"></i>Right half</span>
+      <span><i style="background:var(--target)"></i>Comparing / next write slot</span>
+      <span><i style="background:var(--written)"></i>Just written</span>
+      <span><i style="background:var(--out)"></i>Outside current range</span>
+    </div>
+  </section>
+
+  <section class="panel about">
+    <h2>How it works</h2>
+    <p>Merge sort is divide and conquer: split the range in half, sort each half recursively, then merge. Merging copies the range into a buffer and repeatedly takes the smaller front element of the two halves, writing it back into the array.</p>
+    <p>Time O(n log n) in every case · extra space O(n) · stable (equal elements keep their order).</p>
+    <p>Keys: <kbd>Space</kbd> play/pause · <kbd>←</kbd> <kbd>→</kbd> step · <kbd>N</kbd> new array</p>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const mainLane = $('main'), bufLane = $('buffer');
+
+  let steps = [];
+  let pos = 0;
+  let timer = null;
+  let initial = [];
+
+  // ---- Algorithm: record a snapshot for every meaningful step ----
+  function buildSteps(input) {
+    const a = input.slice();
+    const out = [];
+    let cmp = 0, wr = 0;
+    const snap = (o) => out.push(Object.assign({
+      arr: a.slice(), buf: null, l: -1, m: -1, r: -1, i: -1, j: -1, k: -1,
+      phase: 'idle', cmp, wr, msg: ''
+    }, o));
+
+    snap({ msg: `Unsorted array of ${a.length} elements. Press Play or Step.` });
+
+    function sort(l, r) {
+      if (l >= r) return;
+      const m = (l + r) >> 1;
+      snap({ l, m, r, phase: 'split', msg: `Split [${l}..${r}] → [${l}..${m}] and [${m + 1}..${r}]` });
+      sort(l, m);
+      sort(m + 1, r);
+
+      const buf = new Array(a.length).fill(null);
+      for (let x = l; x <= r; x++) buf[x] = a[x];
+      let i = l, j = m + 1, k = l;
+      const base = () => ({ buf, l, m, r, i, j, k });
+      snap(Object.assign(base(), { phase: 'copy', msg: `Merge [${l}..${m}] and [${m + 1}..${r}]: copy both halves into the buffer` }));
+
+      while (i <= m && j <= r) {
+        cmp++;
+        const takeLeft = buf[i] <= buf[j];
+        snap(Object.assign(base(), { phase: 'compare',
+          msg: `Compare ${buf[i]} vs ${buf[j]} → ${takeLeft ? buf[i] : buf[j]} is smaller${buf[i] === buf[j] ? ' (tie: take left, keeps it stable)' : ''}` }));
+        a[k] = takeLeft ? buf[i++] : buf[j++];
+        wr++;
+        snap(Object.assign(base(), { phase: 'write', msg: `Write ${a[k]} to position ${k}` }));
+        k++;
+      }
+      while (i <= m) {
+        a[k] = buf[i++]; wr++;
+        snap(Object.assign(base(), { phase: 'write', msg: `Right half exhausted: copy ${a[k]} to position ${k}` }));
+        k++;
+      }
+      while (j <= r) {
+        a[k] = buf[j++]; wr++;
+        snap(Object.assign(base(), { phase: 'write', msg: `Left half exhausted: copy ${a[k]} to position ${k}` }));
+        k++;
+      }
+      snap({ l, m, r, phase: 'merged', msg: `[${l}..${r}] is now sorted` });
+    }
+
+    sort(0, a.length - 1);
+    snap({ phase: 'done', msg: `Done! ${cmp} comparisons, ${wr} writes.` });
+    return out;
+  }
+
+  // ---- Rendering ----
+  let mainBars = [], bufBars = [];
+  function buildBars(n) {
+    mainLane.innerHTML = ''; bufLane.innerHTML = '';
+    mainBars = []; bufBars = [];
+    for (let x = 0; x < n; x++) {
+      const b = document.createElement('div'); b.className = 'bar'; b.appendChild(document.createElement('span'));
+      mainLane.appendChild(b); mainBars.push(b);
+      const c = document.createElement('div'); c.className = 'bar'; c.appendChild(document.createElement('span'));
+      bufLane.appendChild(c); bufBars.push(c);
+    }
+  }
+
+  const MAX = 100;
+  function render() {
+    const s = steps[pos];
+    const n = s.arr.length;
+    const showLabels = n <= 32;
+    const active = s.l >= 0;
+
+    for (let x = 0; x < n; x++) {
+      const b = mainBars[x];
+      const v = s.arr[x];
+      b.style.height = (v / MAX * 100) + '%';
+      b.firstChild.textContent = showLabels ? v : '';
+      let cls = 'bar';
+      if (s.phase === 'done') cls += ' done';
+      else if (active && (x < s.l || x > s.r)) cls += ' out';
+      else if (s.phase === 'write' && x === s.k) cls += ' written';
+      else if (s.phase === 'compare' && x === s.k) cls += ' target';
+      else if ((s.phase === 'write' || s.phase === 'compare') && x < s.k) cls += ' written';
+      else if (s.phase === 'merged') cls += ' written';
+      else if (active) cls += x <= s.m ? ' left' : ' right';
+      b.className = cls;
+
+      const c = bufBars[x];
+      const bv = s.buf ? s.buf[x] : null;
+      if (bv == null) {
+        c.className = 'bar empty'; c.style.height = '0'; c.firstChild.textContent = '';
+        continue;
+      }
+      c.style.height = (bv / MAX * 100) + '%';
+      c.firstChild.textContent = showLabels ? bv : '';
+      const isLeft = x <= s.m;
+      const consumed = isLeft ? x < s.i : x < s.j;
+      let ccls = 'bar ' + (isLeft ? 'left' : 'right');
+      if (consumed) ccls += ' consumed';
+      if (s.phase === 'compare' && (x === s.i || x === s.j)) ccls += ' cmp';
+      c.className = ccls;
+    }
+
+    $('msg').textContent = s.msg;
+    $('cmp').textContent = s.cmp;
+    $('wr').textContent = s.wr;
+    $('stepNo').textContent = pos;
+    $('stepTotal').textContent = steps.length - 1;
+    $('progress').max = steps.length - 1;
+    $('progress').value = pos;
+    $('btnBack').disabled = pos === 0;
+    $('btnFwd').disabled = pos === steps.length - 1;
+    $('btnPlay').disabled = pos === steps.length - 1 && !timer;
+  }
+
+  // ---- Playback ----
+  const delay = () => Math.round(900 / Math.pow(1.55, +$('speed').value - 1));
+  function play() {
+    if (pos >= steps.length - 1) return;
+    $('btnPlay').textContent = 'Pause';
+    const tick = () => {
+      if (pos >= steps.length - 1) { pause(); return; }
+      pos++; render();
+      timer = setTimeout(tick, delay());
+    };
+    timer = setTimeout(tick, 0);
+  }
+  function pause() {
+    clearTimeout(timer); timer = null;
+    $('btnPlay').textContent = 'Play';
+    render();
+  }
+  const togglePlay = () => (timer ? pause() : play());
+  function step(d) {
+    if (timer) pause();
+    pos = Math.max(0, Math.min(steps.length - 1, pos + d));
+    render();
+  }
+
+  function load(arr) {
+    if (timer) pause();
+    initial = arr;
+    steps = buildSteps(arr);
+    pos = 0;
+    buildBars(arr.length);
+    render();
+  }
+  function randomArray(n) {
+    return Array.from({ length: n }, () => 5 + Math.floor(Math.random() * 96));
+  }
+
+  // ---- Wiring ----
+  $('btnNew').onclick = () => load(randomArray(+$('size').value));
+  $('btnReset').onclick = () => { if (timer) pause(); pos = 0; render(); };
+  $('btnPlay').onclick = togglePlay;
+  $('btnBack').onclick = () => step(-1);
+  $('btnFwd').onclick = () => step(1);
+  $('size').oninput = (e) => { $('sizeVal').textContent = e.target.value; load(randomArray(+e.target.value)); };
+  $('speed').oninput = (e) => { $('speedVal').textContent = e.target.value; };
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+    if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
+    else if (e.key === 'n' || e.key === 'N') load(randomArray(+$('size').value));
+  });
+
+  load(randomArray(+$('size').value));
+})();
+</script>
+</body>
+</html>
