@@ -73,6 +73,15 @@
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; min-width: 84px; }
   label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .9rem; }
   input[type=range] { width: 120px; accent-color: var(--accent); }
+  select {
+    font: inherit;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+  }
   .val { color: var(--text); min-width: 2.5ch; font-variant-numeric: tabular-nums; }
 
   .lane-title { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 0 0 6px; }
@@ -147,6 +156,12 @@
       <button id="btnFwd" title="Step forward (→)">Step ▶</button>
       <button id="btnReset">Reset</button>
     </div>
+    <label>Order
+      <select id="order">
+        <option value="asc">Ascending</option>
+        <option value="desc">Descending</option>
+      </select>
+    </label>
     <label>Size <input id="size" type="range" min="4" max="64" value="16"><span class="val" id="sizeVal">16</span></label>
     <label>Speed <input id="speed" type="range" min="1" max="10" value="5"><span class="val" id="speedVal">5</span></label>
   </section>
@@ -195,8 +210,9 @@
   let initial = [];
 
   // ---- Algorithm: record a snapshot for every meaningful step ----
-  function buildSteps(input) {
+  function buildSteps(input, desc = false) {
     const a = input.slice();
+    const word = desc ? 'larger' : 'smaller';
     const out = [];
     let cmp = 0, wr = 0;
     const snap = (o) => out.push(Object.assign({
@@ -204,7 +220,7 @@
       phase: 'idle', cmp, wr, msg: ''
     }, o));
 
-    snap({ msg: `Unsorted array of ${a.length} elements. Press Play or Step.` });
+    snap({ msg: `Unsorted array of ${a.length} elements, to sort ${desc ? 'descending' : 'ascending'}. Press Play or Step.` });
 
     function sort(l, r) {
       if (l >= r) return;
@@ -221,9 +237,10 @@
 
       while (i <= m && j <= r) {
         cmp++;
-        const takeLeft = buf[i] <= buf[j];
+        // Ties always take the left element so the sort stays stable in both orders.
+        const takeLeft = desc ? buf[i] >= buf[j] : buf[i] <= buf[j];
         snap(Object.assign(base(), { phase: 'compare',
-          msg: `Compare ${buf[i]} vs ${buf[j]} → ${takeLeft ? buf[i] : buf[j]} is smaller${buf[i] === buf[j] ? ' (tie: take left, keeps it stable)' : ''}` }));
+          msg: `Compare ${buf[i]} vs ${buf[j]} → ${takeLeft ? buf[i] : buf[j]} is ${word}${buf[i] === buf[j] ? ' (tie: take left, keeps it stable)' : ''}` }));
         a[k] = takeLeft ? buf[i++] : buf[j++];
         wr++;
         snap(Object.assign(base(), { phase: 'write', msg: `Write ${a[k]} to position ${k}` }));
@@ -337,7 +354,7 @@
   function load(arr) {
     if (timer) pause();
     initial = arr;
-    steps = buildSteps(arr);
+    steps = buildSteps(arr, $('order').value === 'desc');
     pos = 0;
     buildBars(arr.length);
     render();
@@ -353,10 +370,11 @@
   $('btnBack').onclick = () => step(-1);
   $('btnFwd').onclick = () => step(1);
   $('size').oninput = (e) => { $('sizeVal').textContent = e.target.value; load(randomArray(+e.target.value)); };
-  $('speed').oninput = (e) => { $('speedVal').textContent = e.target.value; };
+  $('order').onchange = () => load(initial);
+  $('speed').oninput =(e) => { $('speedVal').textContent = e.target.value; };
 
   document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+    if (e.target.tagName === 'SELECT' || (e.target.tagName === 'INPUT' && e.target.type !== 'range')) return;
     if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
